@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\LoginUserRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Traits\HttpResponses;
 use App\Events\VerificationCodeGenerated;
 use App\Models\User;
 use Carbon\Carbon;
@@ -22,17 +23,30 @@ class LoginController extends Controller
         }
 
         $user = User::where('email', $request->email)->first();
-        $user->generateVerificationCode();
+        $user->generateTwoFactorCode();
         $user->save();
 
         $token = $user->createToken('Api Token Of ' . $user->name)->plainTextToken;
-        return response()->json([
+        return $this->success([
             'user' => $user,
             'token' => $token
         ]);
     }
+    public function resendTwoFactorCode(Request $request)
+    {
 
-    public function verifyEmailCode(Request $request)
+        $user = User::where('email', $request->email)->first();
+        if (!$user->two_factor_code) {
+            return response()->json(['error' => 'Two-factor authentication not enabled'], 400);
+        }
+        // Send 2FA code
+        $user->generateTwoFactorCode();
+
+        return response()->json(['message' => '2FA code resent successfully'], 200);
+    }
+
+
+    public function confirmTwoFactorCode(Request $request)
     {
         $user = User::where('email', $request->input('email'))->first();
 
@@ -40,19 +54,20 @@ class LoginController extends Controller
             return response()->json(['error' => 'User not found'], 404);
         }
 
-        if ($user->verifyEmailCode($request->input('code'))) {
-            return response()->json(['message' => 'Email verified successfully']);
+        if ($user->confirmTwoFactorCode($request->input('code'))) {
+            return response()->json(['message' => '2Fa verified successfully']);
         }
 
         return response()->json(['error' => 'Invalid verification code'], 422);
     }
 
-
     public function refreshToken(Request $request)
     {
-        $token = $request->user()->token();
-        $newToken = $token->refresh();
-        return response()->json(['token' => $newToken]);
+        $request->user()->tokens()->delete();
+        $token = $request->user()->createToken('api', ['expires_at' => now()->addMinutes(20)]);
+        return response()->json([
+            'new_token' => $token->plainTextToken,
+        ]);
     }
 
 

@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+//use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -10,6 +10,8 @@ use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Support\Str;
 use App\Events\VerificationCodeGenerated;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
+use App\Notifications\EmailVerificationNotification;
 
 class User extends Authenticatable
 {
@@ -20,6 +22,9 @@ class User extends Authenticatable
      *
      * @var array<int, string>
      */
+
+    public $incrementing = true;
+
     protected $fillable = [
         'name',
         'email',
@@ -31,7 +36,7 @@ class User extends Authenticatable
         'two_factor_expires_at',
     ];
 
-    function generateVerificationCode()
+    public function generateTwoFactorCode()
     {
         $code = Str::random(6, 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890');
         $this->two_factor_code = $code;
@@ -43,7 +48,7 @@ class User extends Authenticatable
         event(new VerificationCodeGenerated($this->user, $code));
     }
 
-    public function verifyEmailCode($code)
+    public function confirmTwoFactorCode($code)
     {
         if ($this->two_factor_code  === $code) {
             $this->email_verified_at = now();
@@ -52,7 +57,6 @@ class User extends Authenticatable
         }
         return false;
     }
-
 
     /**
      * The attributes that should be hidden for serialization.

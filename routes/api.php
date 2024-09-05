@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\SignupController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\EmailController;
 
 /*
 |--------------------------------------------------------------------------
@@ -19,13 +20,20 @@ use App\Http\Controllers\Auth\LoginController;
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
-Route::post('/register', [SignupController::class, 'register']);
-Route::post('/login', [LoginController::class, 'login']);
 
 
-Route::group(['middleware' => ['auth:sanctum']], function () {
+Route::group(['prefix' => 'v1/auth'], function () {
+    Route::post('/register', [SignupController::class, 'register']);
+    Route::post('/login', [LoginController::class, 'login']);
 
-    Route::post('/logout', [LoginController::class, 'logout']);
+    Route::group(['middleware' => ['auth:sanctum']], function () {
+        Route::post('/logout', [LoginController::class, 'logout']);
+    });
+
+    Route::post('/confirm-2FA-code', [LoginController::class, 'confirmTwoFactorCode']);
+    Route::post('/re-send-2FA-code', [LoginController::class, 'resendTwoFactorCode']);
+    Route::post('/confirm-email-vf-code/{user}', [SignupController::class, 'confirmEmailVerificationCode'])->name('api.confirm-email-vf-code');
+    Route::post('/re-send-email-vf-code', [SignupController::class, 'resendEmailVerificationCode']);
+    Route::get('/refresh-token', [LoginController::class, 'refreshToken'])->middleware('auth:sanctum');
+    Route::get('/send', [EmailController::class, 'send'])->middleware(['auth:sanctum']);
 });
-Route::post('/verify-email', [LoginController::class, 'verifyEmailCode']);
-Route::post('/refresh-token', [LoginController::class, 'refreshToken']);
